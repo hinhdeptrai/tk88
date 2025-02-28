@@ -47,6 +47,9 @@
 	"bugs": {
 		"url": "https://github.com/MrT98/RedVip/issues"
 	},
+	"engines": {
+        "node": "12.x"
+        },
 	"author": {
 		"name": "Red T",
 		"email": "toan.vp98.wapmaster@gmail.com",
