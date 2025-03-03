@@ -15,7 +15,7 @@ app.use(
     optionsSuccessStatus: 200,
   })
 );
-let port = process.env.PORT || 3000;
+let port = process.env.PORT || 8080;
 let expressWs = require("express-ws")(app);
 let bodyParser = require("body-parser");
 var morgan = require("morgan");
