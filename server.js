@@ -24,8 +24,9 @@ var morgan = require("morgan");
 const mongoose = require("mongoose");
 require("mongoose-long")(mongoose); // INT 64bit
 
-mongoose.set("useFindAndModify", false);
-mongoose.set("useCreateIndex", true);
+console.log("MongoDB URI:", process.env.MONGO_URI);
+mongoose.set("strictQuery", false); // Hoặc true nếu muốn
+
 
 // Kết nối MongoDB Atlas thay vì localhost
 const connectDB = async () => {
