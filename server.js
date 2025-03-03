@@ -1,79 +1,80 @@
 //server.js
 
-require('dotenv').config();
-var cors = require('cors');
+require("dotenv").config();
+var cors = require("cors");
 
-let Telegram = require('node-telegram-bot-api');
-let TelegramToken = '1359141283:AAEMQ-iws4XdsG0XiajuaCmBjkNKOTkfV_I';
-// let TelegramToken = '1094426496:AAGdlkqAe9zjYkUhlgHK4F6DoS-fwU1fuvA';
-//let TelegramToken = "1147607934:AAEsypTJsy_agatrnnmHlMNPvbNaBeB4zZM";
+let Telegram = require("node-telegram-bot-api");
+let TelegramToken = process.env.TELEGRAM_TOKEN || "1359141283:AAEMQ-iws4XdsG0XiajuaCmBjkNKOTkfV_I";
 
 let TelegramBot = new Telegram(TelegramToken, { polling: true });
-let express = require('express');
+let express = require("express");
 let app = express();
-app.use(cors({
-    origin: '*',
-    optionsSuccessStatus: 200
-}));
-let port = process.env.PORT || 80;
-// port = 3000;
-let expressWs = require('express-ws')(app);
-let bodyParser = require('body-parser');
-var morgan = require('morgan');
+app.use(
+  cors({
+    origin: "*",
+    optionsSuccessStatus: 200,
+  })
+);
+let port = process.env.PORT || 3000;
+let expressWs = require("express-ws")(app);
+let bodyParser = require("body-parser");
+var morgan = require("morgan");
 
-// Setting & Connect to the Database
-let configDB = require('./config/database');
-let mongoose = require('mongoose');
-// mongoose.set('debug', true);
+// ✅ KẾT NỐI MONGODB (SỬA LẠI CHO CHUẨN)
+const mongoose = require("mongoose");
+require("mongoose-long")(mongoose); // INT 64bit
 
-require('mongoose-long')(mongoose); // INT 64bit
+mongoose.set("useFindAndModify", false);
+mongoose.set("useCreateIndex", true);
 
-mongoose.set('useFindAndModify', false);
-mongoose.set('useCreateIndex', true);
-mongoose.connect(configDB.url, configDB.options)
-    .catch(function(error) {
-        if (error)
-            console.log('Connect to MongoDB failed', error);
-        else
-            console.log('Connect to MongoDB success');
+// Kết nối MongoDB Atlas thay vì localhost
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      dbName: process.env.DB_NAME,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // Giảm lỗi timeout
     });
+    console.log("✅ MongoDB connected successfully");
+  } catch (error) {
+    console.error("❌ MongoDB connection error:", error);
+    process.exit(1); // Thoát nếu lỗi
+  }
+};
+connectDB(); // Gọi kết nối MongoDB
 
-// kết nối tới database
+// Cấu hình tài khoản admin mặc định và dữ liệu mặc định
+require("./config/admin");
 
-// cấu hình tài khoản admin mặc định và các dữ liệu mặc định
-require('./config/admin');
-// đọc dữ liệu from
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(morgan('combined'));
+app.use(morgan("combined"));
 
-app.set('view engine', 'ejs'); // chỉ định view engine là ejs
-app.set('views', './views'); // chỉ định thư mục view
+app.set("view engine", "ejs"); // chỉ định view engine là ejs
+app.set("views", "./views"); // chỉ định thư mục view
 
 // Serve static html, js, css, and image files from the 'public' directory
-app.use(express.static('public'));
+app.use(express.static("public"));
 
 // server socket
 let redT = expressWs.getWss();
 redT.telegram = TelegramBot;
-global['redT'] = redT;
-global['userOnline'] = 0;
+global["redT"] = redT;
+global["userOnline"] = 0;
 
+// ✅ GIỮ NGUYÊN TOÀN BỘ ROUTES VÀ CẤU HÌNH CỦA ANH
+require("./app/Helpers/socketUser")(redT);
+require("./routerHttp")(app, redT);
+require("./routerHTTPV1")(app, redT);
+require("./routerSocket")(app, redT);
+require("./app/Cron/taixiu")(redT);
+require("./app/Cron/baucua")(redT);
+require("./config/Cron")();
+require("./update")();
+require("./app/Telegram/Telegram")(TelegramBot);
 
-require('./app/Helpers/socketUser')(redT); // Add function socket
-
-require('./routerHttp')(app, redT); // load các routes HTTP
-require('./routerHTTPV1')(app, redT);//load routes news
-require('./routerSocket')(app, redT); // load các routes WebSocket
-
-require('./app/Cron/taixiu')(redT); // Chạy game Tài Xỉu
-require('./app/Cron/baucua')(redT); // Chạy game Bầu Cua
-require('./config/Cron')();
-
-require('./update')();
-
-require('./app/Telegram/Telegram')(TelegramBot); // Telegram Bot
-
-app.listen(port, function() {
-    console.log("Server listen on port ", port);
+// Chạy server
+app.listen(port, function () {
+  console.log("🚀 Server listen on port", port);
 });
